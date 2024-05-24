@@ -83,31 +83,6 @@ def wait_for_client_training(round_number):
 def get_total_data_size() -> int:
     return sum([c.data_size for c in clients.values()])
 
-
-def aggregate_models(global_model):
-    # Zero out global model
-    for param in global_model.parameters():
-        param.data = torch.zeros_like(param.data)
-    
-    # Not all clients will be active
-    usable_clients = [c for c in clients.values() if c.active]
-    
-    # Get selection of clients for aggregating based on subsampling specifications
-    aggregate_clients = usable_clients
-    if sub_client != 0:
-        aggregate_clients = random.sample(usable_clients, sub_client)
-
-    # Aggregate sampled client models into global model
-    t_mse = 0
-    for client in aggregate_clients:
-        print("Getting local model from: ".format(client.client_id))
-        t_mse += client.test_MSE / len(aggregate_clients)
-        for server_param, user_param in zip(global_model.parameters(), client.latest_model.parameters()):
-            sample_size_ratio = client.data_size / get_total_data_size()
-            server_param.data = server_param.data + user_param.data.clone() * sample_size_ratio
-    print("Broadcasting new global model")
-    test_mse.append(t_mse)   
-
 def model_to_bytes(model):
     buffer = io.BytesIO()
     torch.save(model.state_dict(), buffer)
